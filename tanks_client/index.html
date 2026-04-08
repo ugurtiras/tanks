@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Tank Arena - Lobi</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #0c0c0c; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        
+        /* LOBİ EKRANI */
+        #lobby-screen { position: fixed; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%); z-index: 10; }
+        .lobby-card { 
+            background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+            padding: 50px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 40px lime, inset 0 0 20px rgba(0, 255, 136, 0.1);
+            border: 2px solid lime;
+            min-width: 400px;
+        }
+        
+        .lobby-card h1 { 
+            margin: 0 0 15px 0;
+            font-size: 48px;
+            color: #00ff88;
+            text-shadow: 0 0 10px lime;
+            letter-spacing: 3px;
+        }
+        
+        .lobby-card .subtitle {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+        
+        .lobby-form { margin: 30px 0; }
+        
+        input { 
+            padding: 15px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: 2px solid #00ff88;
+            margin-bottom: 15px;
+            width: 100%;
+            background: #1a1a1a;
+            color: white;
+            transition: all 0.3s;
+        }
+        
+        input:focus { 
+            outline: none;
+            box-shadow: 0 0 10px lime;
+            border-color: #32cd32;
+        }
+        
+        button { 
+            padding: 15px 40px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #00ff88 0%, #32cd32 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #000;
+            transition: all 0.3s;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        button:hover { 
+            transform: scale(1.05);
+            box-shadow: 0 0 20px lime;
+        }
+        
+        button:active { transform: scale(0.98); }
+        
+        .lobby-status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #888;
+        }
+        
+        .lobby-status.connected { color: #00ff88; }
+        .lobby-status.error { color: #ff4444; }
+
+        /* OYUN EKRANI */
+        #game-screen { display: none; text-align: center; padding-top: 20px; }
+        .game-viewport {
+            position: relative;
+            width: min(800px, 92vw, calc(100vh - 130px));
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+            overflow: hidden;
+            border: 3px solid #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+        canvas { display: block; width: 100%; height: 100%; background: #000; }
+        .ui { margin-bottom: 10px; font-size: 18px; color: #00ff88; text-shadow: 0 0 5px lime; }
+
+        .room-lobby-overlay,
+        .result-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.78);
+            z-index: 2;
+        }
+
+        .room-lobby-card,
+        .result-card {
+            width: min(90%, 480px);
+            padding: 24px;
+            border: 2px solid #00ff88;
+            border-radius: 14px;
+            background: #101010;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            text-align: left;
+        }
+
+        .room-lobby-card h2,
+        .result-card h2 {
+            margin: 0 0 12px 0;
+            color: #00ff88;
+        }
+
+        #room-players {
+            list-style: none;
+            margin: 12px 0;
+            padding: 0;
+            max-height: 180px;
+            overflow: auto;
+        }
+
+        #room-players li {
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            border: 1px solid #2e2e2e;
+            border-radius: 8px;
+            background: #181818;
+        }
+
+        #start-game-btn[disabled] {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .room-help {
+            margin-top: 10px;
+            color: #a8a8a8;
+            font-size: 13px;
+        }
+
+        .result-overlay { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="lobby-screen">
+        <div class="lobby-card">
+            <h1>⚔ TANK ARENA ⚔</h1>
+            <div class="subtitle">MULTIPLAYER SAVAŞ OYUNU</div>
+            
+            <div class="lobby-form">
+                <input type="text" id="nick-input" placeholder="Isim (3-12 karakter)" maxlength="12">
+                <input type="text" id="room-input" placeholder="Oda Kodu (ORN: ABCDEFG)" maxlength="7" autocomplete="off">
+                <button id="join-btn">ODAYA KATIL</button>
+                <button id="create-btn">ODA OLUSTUR</button>
+            </div>
+            
+            <div id="lobby-status" class="lobby-status">Sunucuya bağlanıyor...</div>
+            <div style="margin-top: 20px; font-size: 12px; color: #555;">W/↑: İleri  |  A/←: Sola Dön  |  D/→: Sağa Dön  |  SPACE: Ateş</div>
+        </div>
+    </div>
+
+    <div id="game-screen">
+        <div class="ui">
+            <span id="player-nick"></span> | Oda: <span id="room-id">-</span> | Admin: <span id="owner-nick">-</span> | Oyuncular: <span id="count">0</span>
+        </div>
+        <div class="game-viewport">
+            <canvas id="gameCanvas" width="800" height="800"></canvas>
+
+            <div id="room-lobby-overlay" class="room-lobby-overlay">
+                <div class="room-lobby-card">
+                    <h2>Oda Lobisi</h2>
+                    <div>Oda kodu: <strong id="room-lobby-room-id">-</strong></div>
+                    <div>Admin: <strong id="room-owner">-</strong></div>
+                    <div style="margin-top: 10px;">Oyuncular (<span id="room-player-count">0</span>/4)</div>
+                    <ul id="room-players"></ul>
+                    <button id="start-game-btn" disabled>OYUNU BASLAT</button>
+                    <div id="room-lobby-status" class="room-help">Oyun admin tarafindan baslatilacak.</div>
+                </div>
+            </div>
+
+            <div id="result-overlay" class="result-overlay">
+                <div class="result-card">
+                    <h2>Oyun Bitti</h2>
+                    <div id="result-text">Kazanan bekleniyor...</div>
+                    <div class="room-help">Yeni turu sadece admin baslatabilir.</div>
+                    <button id="back-to-lobby-btn" style="margin-top: 14px;">LOBIYE DON</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="game.js"></script>
+</body>
+</html>
