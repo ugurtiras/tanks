@@ -77,15 +77,16 @@ type BulletState struct {
 }
 
 func isWall(x, y float64) bool {
+	if x < 0 || y < 0 {
+		return true
+	}
+
 	gridX := int(x / TileSize)
 	gridY := int(y / TileSize)
 	if gridY < 0 || gridY >= Rows || gridX < 0 || gridX >= Cols {
 		return true
 	}
 
-	if gridX == 0 || gridX == Cols-1 || gridY == 0 || gridY == Rows-1 {
-		return false
-	}
 	return MazeData[gridY][gridX] == 1
 }
 
