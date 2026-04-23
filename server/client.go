@@ -32,8 +32,8 @@ type GameMessage struct {
 	Nickname string  `json:"nickname"`
 	Action   string  `json:"action"`
 	RoomID   string  `json:"roomId"`
-	IsMoving bool    `json:"isMoving"` // client'dan gelen hareket durumu
-	Angle    float64 `json:"angle"`    // Tankın veya merminin açısı
+	IsMoving bool    `json:"isMoving"`
+	Angle    float64 `json:"angle"`
 	Up       bool    `json:"up"`
 	Down     bool    `json:"down"`
 	Left     bool    `json:"left"`

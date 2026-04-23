@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"slices"
 	"testing"
 	"time"
@@ -112,7 +113,7 @@ func TestAlivePlayerNames(t *testing.T) {
 	engine.Players["sherlock"].Health = 0
 	names := engine.AlivePlayerNames()
 	if slices.Contains(names, "sherlock") {
-		t.Errorf("sherlock should be on the list")
+		t.Errorf("sherlock shouldn't be on the list")
 
 	}
 	if !slices.Contains(names, "ugur") {
@@ -152,4 +153,76 @@ func TestTryFire(t *testing.T) {
 			t.Errorf("try_fire did not to at list")
 		}
 	})
+
+}
+
+func TestRemovePlayer(t *testing.T) {
+	engine := NewGameEngine()
+	engine.AddPlayer("sherlock")
+	engine.AddPlayer("ugur")
+	engine.RemovePlayer("sherlock")
+	if _, ok := engine.Players["sherlock"]; ok {
+		t.Errorf("Remove_Player does not work")
+	}
+
+}
+
+func TestUpdate(t *testing.T) {
+	t.Run("dead player move", func(t *testing.T) {
+		engine := NewGameEngine()
+		engine.AddPlayer("sherlock")
+		engine.Players["sherlock"].Input.Up = true
+		engine.Players["sherlock"].Health = 0
+		engine.Update()
+		if engine.Players["sherlock"].X != 60 || engine.Players["sherlock"].Y != 60 {
+			t.Errorf("dead player should not move")
+		}
+	})
+
+	t.Run("living movement player check", func(t *testing.T) {
+		engine := NewGameEngine()
+		engine.AddPlayer("sherlock")
+		engine.Players["sherlock"].Input.Up = true
+		engine.Update()
+		if engine.Players["sherlock"].X == 60 {
+			t.Errorf("living player must be able to move")
+		}
+
+	})
+
+	t.Run("wall obstacle control", func(t *testing.T) {
+		engine := NewGameEngine()
+		engine.AddPlayer("sherlock")
+		engine.Players["sherlock"].X = TankRadius + 1
+		engine.Players["sherlock"].Angle = math.Pi
+		engine.Players["sherlock"].Input.Up = true
+		engine.Update()
+		if engine.Players["sherlock"].X != TankRadius+1 {
+			t.Errorf("wall collision not working")
+		}
+	})
+
+	t.Run("bullet TTL check ", func(t *testing.T) {
+		engine := NewGameEngine()
+		engine.AddPlayer("sherlock")
+		engine.AddBullet("sherlock", 100, 100, 0)
+		engine.Bullets[0].CreatedAt = time.Now().Add(-3 * time.Second)
+		engine.Update()
+		if len(engine.Bullets) != 0 {
+			t.Errorf("expired bullets should be removed from the slice")
+
+		}
+	})
+
+	t.Run("bullet hit deteciton", func(t *testing.T) {
+		engine := NewGameEngine()
+		engine.AddPlayer("target")
+		engine.AddPlayer("shooter")
+		engine.AddBullet("shooter", 60, 60, 0)
+		engine.Update()
+		if engine.Players["target"].Health > 0 {
+			t.Errorf("target player should have 0 health after being hit")
+		}
+	})
+
 }

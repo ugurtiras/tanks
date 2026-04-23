@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  game-server:
+    build:
+      context: ./server
+    ports:
+      - "8080:8080"
+    networks:
+      - game-net
+  nginx:
+    build:
+      context: ./tanks_client
+    ports:
+      - "8081:80"
+    depends_on:
+      - game-server
+    networks:
+      - game-net
+networks:
+  game-net :
+    driver: bridge
