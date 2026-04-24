@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./backend # Burası 'backend' klasörüne git demek
+        working-directory: ./server  
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -19,10 +19,11 @@ jobs:
       - name: Setup Go 
         uses: actions/setup-go@v5
         with: 
-          go-version: '1.22' # İki noktadan sonra boşluk var!
+          go-version: '1.25' 
 
       - name: Install Dependencies
         run: go mod download
 
       - name: Build Check 
         run: go build -v ./...
+        
