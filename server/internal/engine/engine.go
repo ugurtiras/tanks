@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"errors"
@@ -11,6 +11,8 @@ import (
 
 var ErrRoomFull = errors.New("oda dolu")
 var ErrNicknameTaken = errors.New("bu nick bu odada zaten kullanimda")
+
+const MaxPlayersPerRoom = 4
 
 const (
 	TileSize   = 40.0
@@ -74,6 +76,33 @@ type BulletState struct {
 	Angle     float64   `json:"angle"`
 	Alive     bool      `json:"-"`
 	CreatedAt time.Time `json:"-"`
+}
+
+type PlayerObservation struct {
+	Name   string  `json:"name"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Angle  float64 `json:"angle"`
+	Health int     `json:"health"`
+	Up     bool    `json:"up"`
+	Down   bool    `json:"down"`
+	Left   bool    `json:"left"`
+	Right  bool    `json:"right"`
+}
+
+type BulletObservation struct {
+	Owner string  `json:"owner"`
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	Angle float64 `json:"angle"`
+	Alive bool    `json:"alive"`
+}
+
+type Observation struct {
+	PlayerCount int                 `json:"playerCount"`
+	BulletCount int                 `json:"bulletCount"`
+	Players     []PlayerObservation `json:"players"`
+	Bullets     []BulletObservation `json:"bullets"`
 }
 
 func isWall(x, y float64) bool {
@@ -375,4 +404,84 @@ func (e *GameEngine) addBulletLocked(nickname string, x, y, angle float64) {
 		CreatedAt: time.Now(),
 	}
 	e.Bullets = append(e.Bullets, newBullet)
+}
+
+func (g *GameEngine) Reset() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	g.Bullets = make([]*BulletState, 0)
+
+	names := make([]string, 0, len(g.Players))
+	for name := range g.Players {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	spawnPositions := []struct {
+		x float64
+		y float64
+	}{
+		{TileSize * 1.5, TileSize * 1.5},
+		{TileSize * 18.5, TileSize * 1.5},
+		{TileSize * 1.5, TileSize * 18.5},
+		{TileSize * 18.5, TileSize * 18.5},
+	}
+
+	for i, name := range names {
+		player := g.Players[name]
+		spawn := spawnPositions[i%len(spawnPositions)]
+		player.X = spawn.x
+		player.Y = spawn.y
+		player.Angle = 0
+		player.Input = PlayerInput{}
+		player.LastShotAt = time.Now().Add(-time.Second)
+		player.Health = 100
+	}
+}
+
+func (g *GameEngine) GameState() Observation {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	obs := Observation{
+		PlayerCount: len(g.Players),
+		BulletCount: len(g.Bullets),
+		Players:     make([]PlayerObservation, 0, len(g.Players)),
+		Bullets:     make([]BulletObservation, 0, len(g.Bullets)),
+	}
+
+	names := make([]string, 0, len(g.Players))
+	for name := range g.Players {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		player := g.Players[name]
+
+		obs.Players = append(obs.Players, PlayerObservation{
+			Name:   name,
+			X:      player.X,
+			Y:      player.Y,
+			Angle:  player.Angle,
+			Health: player.Health,
+			Up:     player.Input.Up,
+			Down:   player.Input.Down,
+			Left:   player.Input.Left,
+			Right:  player.Input.Right,
+		})
+	}
+
+	for _, bullet := range g.Bullets {
+		obs.Bullets = append(obs.Bullets, BulletObservation{
+			Owner: bullet.Owner,
+			X:     bullet.X,
+			Y:     bullet.Y,
+			Angle: bullet.Angle,
+			Alive: bullet.Alive,
+		})
+	}
+
+	return obs
 }

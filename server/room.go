@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"server/internal/engine"
 	"time"
 )
 
@@ -19,7 +20,7 @@ type Room struct {
 	Register    chan *Client
 	Unregister  chan *Client
 	Closed      chan string
-	Engine      *GameEngine
+	Engine      *engine.GameEngine
 }
 
 func NewRoom(id string, closed chan string) *Room {
@@ -30,7 +31,7 @@ func NewRoom(id string, closed chan string) *Room {
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		Closed:     closed,
-		Engine:     NewGameEngine(), //motoru oluştur
+		Engine:     engine.NewGameEngine(), //motoru oluştur
 	}
 }
 
@@ -115,12 +116,12 @@ func (r *Room) handleIncomingMessage(rawMessage []byte) {
 		if !r.GameStarted || r.GameOver {
 			return
 		}
-		r.Engine.SetPlayerInput(msg.Nickname, PlayerInput{Up: msg.IsMoving})
+		r.Engine.SetPlayerInput(msg.Nickname, engine.PlayerInput{Up: msg.IsMoving})
 	} else if msg.Type == "INPUT" {
 		if !r.GameStarted || r.GameOver {
 			return
 		}
-		r.Engine.SetPlayerInput(msg.Nickname, PlayerInput{
+		r.Engine.SetPlayerInput(msg.Nickname, engine.PlayerInput{
 			Up:    msg.Up,
 			Down:  msg.Down,
 			Left:  msg.Left,

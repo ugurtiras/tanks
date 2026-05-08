@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"server/internal/engine"
 	"strings"
 	"time"
 
@@ -112,7 +113,7 @@ func (c *Client) handleLogin(incomingMsg GameMessage) {
 	c.Nickname = nickname
 
 	if err := c.room.Engine.AddPlayer(c.Nickname); err != nil {
-		if err == ErrRoomFull {
+		if err == engine.ErrRoomFull {
 			c.sendAuthFail("Oda dolu. Maksimum 4 oyuncu.")
 		} else {
 			c.sendAuthFail("Bu nick bu odada zaten kullanimda.")
