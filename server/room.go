@@ -21,6 +21,7 @@ type Room struct {
 	Unregister  chan *Client
 	Closed      chan string
 	Engine      *engine.GameEngine
+	lastUpdate  time.Time
 }
 
 func NewRoom(id string, closed chan string) *Room {
@@ -31,7 +32,8 @@ func NewRoom(id string, closed chan string) *Room {
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		Closed:     closed,
-		Engine:     engine.NewGameEngine(), //motoru oluştur
+		Engine:     engine.NewGameEngine(),
+		lastUpdate: time.Now(),
 	}
 }
 
@@ -80,8 +82,12 @@ func (r *Room) Run() {
 		//oyun döngüsü (her TIK ta çalışır)
 		case <-ticker.C:
 			if r.GameStarted && !r.GameOver {
+				//zaman farkını hesapla
+				now := time.Now()
+				dt := now.Sub(r.lastUpdate).Seconds()
+				r.lastUpdate = now
 				//motoru bir adım ilerlet
-				r.Engine.Update()
+				r.Engine.Update(dt)
 				r.evaluateGameOver()
 			}
 			//Yeni dünya durumunu herkese gönder

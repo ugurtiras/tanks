@@ -168,12 +168,13 @@ func TestRemovePlayer(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	dt := 0.01 // 10ms
 	t.Run("dead player move", func(t *testing.T) {
 		engine := NewGameEngine()
 		engine.AddPlayer("sherlock")
 		engine.Players["sherlock"].Input.Up = true
 		engine.Players["sherlock"].Health = 0
-		engine.Update()
+		engine.Update(dt)
 		if engine.Players["sherlock"].X != 60 || engine.Players["sherlock"].Y != 60 {
 			t.Errorf("dead player should not move")
 		}
@@ -183,7 +184,7 @@ func TestUpdate(t *testing.T) {
 		engine := NewGameEngine()
 		engine.AddPlayer("sherlock")
 		engine.Players["sherlock"].Input.Up = true
-		engine.Update()
+		engine.Update(dt)
 		if engine.Players["sherlock"].X == 60 {
 			t.Errorf("living player must be able to move")
 		}
@@ -196,7 +197,7 @@ func TestUpdate(t *testing.T) {
 		engine.Players["sherlock"].X = TankRadius + 1
 		engine.Players["sherlock"].Angle = math.Pi
 		engine.Players["sherlock"].Input.Up = true
-		engine.Update()
+		engine.Update(dt)
 		if engine.Players["sherlock"].X != TankRadius+1 {
 			t.Errorf("wall collision not working")
 		}
@@ -207,7 +208,7 @@ func TestUpdate(t *testing.T) {
 		engine.AddPlayer("sherlock")
 		engine.AddBullet("sherlock", 100, 100, 0)
 		engine.Bullets[0].CreatedAt = time.Now().Add(-3 * time.Second)
-		engine.Update()
+		engine.Update(dt)
 		if len(engine.Bullets) != 0 {
 			t.Errorf("expired bullets should be removed from the slice")
 
@@ -219,7 +220,7 @@ func TestUpdate(t *testing.T) {
 		engine.AddPlayer("target")
 		engine.AddPlayer("shooter")
 		engine.AddBullet("shooter", 60, 60, 0)
-		engine.Update()
+		engine.Update(dt)
 		if engine.Players["target"].Health > 0 {
 			t.Errorf("target player should have 0 health after being hit")
 		}

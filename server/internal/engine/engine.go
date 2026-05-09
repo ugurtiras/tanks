@@ -224,24 +224,24 @@ func (e *GameEngine) ResetRound() {
 	}
 }
 
-// her Tick'te (16ms) çalışacak ana motor fonksiyonu
-func (e *GameEngine) Update() {
+// her Tick'te çalışacak ana motor fonksiyonu. dt saniye cinsinden zaman farkı
+func (e *GameEngine) Update(dt float64) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	//Oyuncuları hareket ettir
-	moveSpeed := 2.0
-	turnSpeed := 0.08
+	moveSpeed := 200.0 // units per second
+	turnSpeed := 8.0   // radians per second
 	for _, p := range e.Players {
 		if p.Health <= 0 {
 			continue
 		}
 
 		if p.Input.Left {
-			p.Angle -= turnSpeed
+			p.Angle -= turnSpeed * dt
 		}
 		if p.Input.Right {
-			p.Angle += turnSpeed
+			p.Angle += turnSpeed * dt
 		}
 
 		forward := 0.0
@@ -253,8 +253,8 @@ func (e *GameEngine) Update() {
 		}
 
 		if forward != 0 {
-			nextX := p.X + math.Cos(p.Angle)*moveSpeed*forward
-			nextY := p.Y + math.Sin(p.Angle)*moveSpeed*forward
+			nextX := p.X + math.Cos(p.Angle)*moveSpeed*forward*dt
+			nextY := p.Y + math.Sin(p.Angle)*moveSpeed*forward*dt
 
 			if !collidesWallWithRadius(nextX, p.Y, TankRadius) {
 				p.X = nextX
@@ -276,11 +276,11 @@ func (e *GameEngine) Update() {
 		}
 	}
 
-	e.updateBullets()
+	e.updateBullets(dt)
 }
 
-func (e *GameEngine) updateBullets() {
-	bulletSpeed := 6.0
+func (e *GameEngine) updateBullets(dt float64) {
+	bulletSpeed := 600.0 // units per second
 	hitDistance := 20.0
 
 	activeBullets := make([]*BulletState, 0)
@@ -293,7 +293,7 @@ func (e *GameEngine) updateBullets() {
 		}
 
 		steps := 3.0
-		stepSpeed := bulletSpeed / steps
+		stepSpeed := (bulletSpeed * dt) / steps
 		for i := 0; i < int(steps); i++ {
 			dx := math.Cos(b.Angle) * stepSpeed
 			dy := math.Sin(b.Angle) * stepSpeed
