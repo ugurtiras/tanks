@@ -485,3 +485,34 @@ func (g *GameEngine) GameState() Observation {
 
 	return obs
 }
+
+func (e *GameEngine) Step(action int) Observation {
+	names := e.GetPlayerNames()
+	if len(names) == 0 {
+		return e.GameState()
+	}
+	player := names[0]
+
+	switch action {
+	case 0:
+		e.SetPlayerInput(player, PlayerInput{Up: true})
+	case 1:
+		e.SetPlayerInput(player, PlayerInput{Down: true})
+	case 2:
+		e.SetPlayerInput(player, PlayerInput{Left: true})
+	case 3:
+		e.SetPlayerInput(player, PlayerInput{Right: true})
+	case 4:
+		e.TryFire(player)
+	}
+
+	e.Update(0.01)
+
+	e.mu.Lock()
+	for _, p := range e.Players {
+		p.Input = PlayerInput{}
+	}
+	e.mu.Unlock()
+
+	return e.GameState()
+}

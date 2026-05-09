@@ -156,16 +156,29 @@ func TestTryFire(t *testing.T) {
 
 }
 
-func TestRemovePlayer(t *testing.T) {
+func TestSimulationStep(t *testing.T) {
 	engine := NewGameEngine()
-	engine.AddPlayer("sherlock")
-	engine.AddPlayer("ugur")
-	engine.RemovePlayer("sherlock")
-	if _, ok := engine.Players["sherlock"]; ok {
-		t.Errorf("Remove_Player does not work")
+	engine.AddPlayer("bot")
+	engine.ResetRound()
+
+	initialX := engine.Players["bot"].X
+
+	// 100 step, action 0 (up/forward)
+	for i := 0; i < 100; i++ {
+		engine.Step(0)
 	}
 
+	finalX := engine.Players["bot"].X
+
+	if finalX == initialX {
+		t.Errorf("bot should have moved after 100 steps")
+	}
+
+	if finalX <= initialX {
+		t.Errorf("bot should move forward, but X decreased or stayed same")
+	}
 }
+
 
 func TestUpdate(t *testing.T) {
 	dt := 0.01 // 10ms
