@@ -20,11 +20,11 @@ type Room struct {
 	Register    chan *Client
 	Unregister  chan *Client
 	Closed      chan string
-	Engine      *engine.GameEngine
+	Engine      engine.Engine
 	lastUpdate  time.Time
 }
 
-func NewRoom(id string, closed chan string) *Room {
+func NewRoom(id string, closed chan string, eng engine.Engine) *Room {
 	return &Room{
 		ID:         id,
 		Clients:    make(map[*Client]bool),
@@ -32,7 +32,7 @@ func NewRoom(id string, closed chan string) *Room {
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		Closed:     closed,
-		Engine:     engine.NewGameEngine(),
+		Engine:     eng,
 		lastUpdate: time.Now(),
 	}
 }
@@ -211,11 +211,12 @@ func (r *Room) broadcastSimple(payload map[string]interface{}) {
 }
 
 func (r *Room) broadcastWorldState() {
-	//engineden güncel verileri al
+	//engineden güvenli snapshot al
+	gs := r.Engine.GameState()
 	state := map[string]interface{}{
 		"type":       "GAME_STATE",
-		"players":    r.Engine.Players,
-		"bullets":    r.Engine.Bullets,
+		"players":    gs.Players,
+		"bullets":    gs.Bullets,
 		"started":    r.GameStarted,
 		"gameOver":   r.GameOver,
 		"winner":     r.Winner,

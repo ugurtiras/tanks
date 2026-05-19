@@ -6,7 +6,6 @@ import (
 	"math"
 	"sort"
 	"sync"
-	"time"
 )
 
 var ErrRoomFull = errors.New("oda dolu")
@@ -47,9 +46,11 @@ var MazeData = [Rows][Cols]int{
 }
 
 type GameEngine struct {
-	mu      sync.RWMutex
-	Players map[string]*PlayerState
-	Bullets []*BulletState
+	mu           sync.RWMutex
+	Players      map[string]*PlayerState
+	Bullets      []*BulletState
+	simTime      float64
+	nextBulletID int64
 }
 
 type PlayerState struct {
@@ -57,7 +58,7 @@ type PlayerState struct {
 	Y          float64     `json:"y"`
 	Angle      float64     `json:"angle"`
 	Input      PlayerInput `json:"-"`
-	LastShotAt time.Time   `json:"-"`
+	LastShotAt float64     `json:"-"`
 	Health     int         `json:"health"`
 }
 
@@ -69,13 +70,13 @@ type PlayerInput struct {
 }
 
 type BulletState struct {
-	ID        string    `json:"id"`
-	Owner     string    `json:"owner"`
-	X         float64   `json:"x"`
-	Y         float64   `json:"y"`
-	Angle     float64   `json:"angle"`
-	Alive     bool      `json:"-"`
-	CreatedAt time.Time `json:"-"`
+	ID        string  `json:"id"`
+	Owner     string  `json:"owner"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	Angle     float64 `json:"angle"`
+	Alive     bool    `json:"-"`
+	CreatedAt float64 `json:"-"`
 }
 
 type PlayerObservation struct {
@@ -105,6 +106,20 @@ type Observation struct {
 	Bullets     []BulletObservation `json:"bullets"`
 }
 
+// Engine is the minimal interface used by external packages (Room, tests, trainers).
+type Engine interface {
+	Update(dt float64)
+	SetPlayerInput(nickname string, input PlayerInput)
+	TryFire(nickname string)
+	PlayerCount() int
+	GetPlayerNames() []string
+	AlivePlayerNames() []string
+	ResetRound()
+	GameState() Observation
+	AddPlayer(nickname string) error
+	RemovePlayer(nickname string)
+}
+
 func isWall(x, y float64) bool {
 	if x < 0 || y < 0 {
 		return true
@@ -120,7 +135,6 @@ func isWall(x, y float64) bool {
 }
 
 func collidesWallWithRadius(x, y, radius float64) bool {
-
 	return isWall(x-radius, y-radius) ||
 		isWall(x+radius, y-radius) ||
 		isWall(x-radius, y+radius) ||
@@ -129,8 +143,10 @@ func collidesWallWithRadius(x, y, radius float64) bool {
 
 func NewGameEngine() *GameEngine {
 	return &GameEngine{
-		Players: make(map[string]*PlayerState),
-		Bullets: make([]*BulletState, 0),
+		Players:      make(map[string]*PlayerState),
+		Bullets:      make([]*BulletState, 0),
+		simTime:      0,
+		nextBulletID: 1,
 	}
 }
 
@@ -147,7 +163,7 @@ func (e *GameEngine) AddPlayer(nickname string) error {
 		X:          TileSize * 1.5,
 		Y:          TileSize * 1.5,
 		Angle:      0,
-		LastShotAt: time.Now().Add(-time.Second),
+		LastShotAt: e.simTime - 1.0,
 		Health:     100,
 	}
 	return nil
@@ -220,7 +236,7 @@ func (e *GameEngine) ResetRound() {
 		p.Angle = 0
 		p.Input = PlayerInput{}
 		p.Health = 100
-		p.LastShotAt = time.Now().Add(-time.Second)
+		p.LastShotAt = e.simTime - 1.0
 	}
 }
 
@@ -228,6 +244,9 @@ func (e *GameEngine) ResetRound() {
 func (e *GameEngine) Update(dt float64) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	// advance simulation time
+	e.simTime += dt
 
 	//Oyuncuları hareket ettir
 	moveSpeed := 200.0 // units per second
@@ -286,8 +305,8 @@ func (e *GameEngine) updateBullets(dt float64) {
 	activeBullets := make([]*BulletState, 0)
 
 	for _, b := range e.Bullets {
-		// 1. ZAMAN KONTROLÜ (2 Saniye Kuralı)
-		if time.Since(b.CreatedAt) > 2*time.Second {
+		// 1. TTL kontrolü (2 saniye simülasyon süresi)
+		if e.simTime-b.CreatedAt > 2.0 {
 			b.Alive = false
 			continue
 		}
@@ -339,7 +358,7 @@ func (e *GameEngine) updateBullets(dt float64) {
 
 		hit := false
 		for nick, p := range e.Players {
-			if nick == b.Owner && time.Since(b.CreatedAt) < 200*time.Millisecond {
+			if nick == b.Owner && e.simTime-b.CreatedAt < 0.2 {
 				continue // Mermi namludan yeni çıktıysa sahibini vurmasın
 			}
 
@@ -377,11 +396,11 @@ func (e *GameEngine) TryFire(nickname string) {
 		return
 	}
 
-	if time.Since(p.LastShotAt) < 250*time.Millisecond {
+	if e.simTime-p.LastShotAt < 0.25 {
 		return
 	}
 
-	p.LastShotAt = time.Now()
+	p.LastShotAt = e.simTime
 	e.addBulletLocked(nickname, p.X, p.Y, p.Angle)
 }
 
@@ -393,15 +412,17 @@ func (e *GameEngine) AddBullet(nickname string, x, y, angle float64) {
 }
 
 func (e *GameEngine) addBulletLocked(nickname string, x, y, angle float64) {
+	id := fmt.Sprintf("%s-%d", nickname, e.nextBulletID)
+	e.nextBulletID++
 
 	newBullet := &BulletState{
-		ID:        fmt.Sprintf("%s-%d", nickname, time.Now().UnixNano()),
+		ID:        id,
 		Owner:     nickname,
 		X:         x,
 		Y:         y,
 		Angle:     angle,
 		Alive:     true,
-		CreatedAt: time.Now(),
+		CreatedAt: e.simTime,
 	}
 	e.Bullets = append(e.Bullets, newBullet)
 }
@@ -435,7 +456,7 @@ func (g *GameEngine) Reset() {
 		player.Y = spawn.y
 		player.Angle = 0
 		player.Input = PlayerInput{}
-		player.LastShotAt = time.Now().Add(-time.Second)
+		player.LastShotAt = g.simTime - 1.0
 		player.Health = 100
 	}
 }
