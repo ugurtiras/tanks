@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"fmt"
+	"server/internal/engine"
 	"strings"
 )
 
@@ -60,7 +61,7 @@ func (h *Hub) handleJoinRoomRequest(req JoinRoomRequest) {
 	switch req.Action {
 	case "create":
 		roomID := h.generateUniqueRoomID()
-		room := NewRoom(roomID, h.RoomClosed)
+		room := NewRoom(roomID, h.RoomClosed, engine.NewGameEngine())
 		room.Owner = req.Nickname
 		h.Rooms[roomID] = room
 		go room.Run()

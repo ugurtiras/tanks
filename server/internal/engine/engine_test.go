@@ -4,7 +4,6 @@ import (
 	"math"
 	"slices"
 	"testing"
-	"time"
 )
 
 func TestIsWall(t *testing.T) {
@@ -138,7 +137,7 @@ func TestTryFire(t *testing.T) {
 	t.Run("250 ms check", func(t *testing.T) {
 		engine := NewGameEngine()
 		engine.AddPlayer("sherlock")
-		engine.Players["sherlock"].LastShotAt = time.Now()
+		engine.Players["sherlock"].LastShotAt = 0.0
 		engine.TryFire("sherlock")
 		if len(engine.Bullets) != 0 {
 			t.Errorf("250 ms error")
@@ -156,15 +155,27 @@ func TestTryFire(t *testing.T) {
 
 }
 
-func TestRemovePlayer(t *testing.T) {
+func TestSimulationStep(t *testing.T) {
 	engine := NewGameEngine()
-	engine.AddPlayer("sherlock")
-	engine.AddPlayer("ugur")
-	engine.RemovePlayer("sherlock")
-	if _, ok := engine.Players["sherlock"]; ok {
-		t.Errorf("Remove_Player does not work")
+	engine.AddPlayer("bot")
+	engine.ResetRound()
+
+	initialX := engine.Players["bot"].X
+
+	// 100 step, action 0 (up/forward)
+	for i := 0; i < 100; i++ {
+		engine.Step(0)
 	}
 
+	finalX := engine.Players["bot"].X
+
+	if finalX == initialX {
+		t.Errorf("bot should have moved after 100 steps")
+	}
+
+	if finalX <= initialX {
+		t.Errorf("bot should move forward, but X decreased or stayed same")
+	}
 }
 
 func TestUpdate(t *testing.T) {
@@ -207,7 +218,7 @@ func TestUpdate(t *testing.T) {
 		engine := NewGameEngine()
 		engine.AddPlayer("sherlock")
 		engine.AddBullet("sherlock", 100, 100, 0)
-		engine.Bullets[0].CreatedAt = time.Now().Add(-3 * time.Second)
+		engine.Bullets[0].CreatedAt = -3.0
 		engine.Update(dt)
 		if len(engine.Bullets) != 0 {
 			t.Errorf("expired bullets should be removed from the slice")
