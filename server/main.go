@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -31,6 +32,19 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	mode := flag.String("mode", "live", "running mode : 'live' or 'train'")
+	flag.Parse()
+
+	if *mode == "train" {
+		fmt.Println("training mode is activated ...")
+
+		startTrainingBridge()
+		return
+
+	}
+
+	fmt.Println("live mode active websockets is listening ..")
+
 	fmt.Println("Server is starting on :8080...")
 	hub := newHub()
 
