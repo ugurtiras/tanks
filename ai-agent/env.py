@@ -14,8 +14,9 @@ class TanksSingleAgentEnv(gym.Env):
         
         self.action_space = spaces.Discrete(6)
         
+        # Go haritan büyükse high değerini harita boyutuna (örn: 800) çekebilirsin
         self.observation_space = spaces.Box(
-            low=0, high=800, shape=(16,), dtype=np.float32
+            low=-1000, high=1000, shape=(16,), dtype=np.float32
         )
         
         self.current_obs = None
@@ -23,28 +24,55 @@ class TanksSingleAgentEnv(gym.Env):
         
         self.data_ready = threading.Event()
         self.action_ready = threading.Event()
+        
+        # Kilitlenmeyi önlemek için ilk reset kontrolü
+        self.is_first_reset = True
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        self.data_ready.wait()
+        
+        # Eğer bu PPO'nun ilk reset isteğiyse ve Go henüz veri atmadıysa bekle
+        if self.is_first_reset and self.current_obs is None:
+            print("[ENV] Waiting for Go server to send initial game state...")
+            self.data_ready.wait()
+            self.is_first_reset = False
+            
         state = self._parse_observation(self.current_obs)
-        self.data_ready.clear()
         return state, {}
 
     def step(self, action):
         self.next_action = action
-        self.action_ready.set()
+        self.action_ready.set()  # Flask'a "aksiyon hazır, Go'ya dön" diyoruz
         
+        # Go'nun bir sonraki kareyi hesaplayıp yeni veriyi basmasını bekliyoruz
         self.data_ready.wait()
-        state = self._parse_observation(self.current_obs)
         self.data_ready.clear()
         
-        reward = 0.1 
+        state = self._parse_observation(self.current_obs)
+        
+        # --- TEK ATISTA ÖLÜM MODU - ÖDÜL VE CEZA AYARI ---
+        reward = 0.0
+        
+        # 1. Hayatta kalınan her an için minik motivasyon (Mermilerden kaçmayı tetikler)
+        reward += 0.05 
+        
+        # 2. Düşmanı vurduysa (Yani tek atışta onu yok ettiyse)
+        if self.current_obs.get("hitEnemy", False) or self.current_obs.get("killedEnemy", False):
+            reward += 30.0  
+            print("[REWARD] Bot shot and killed an enemy! +30")
+            
+        # 3. Kendisi mermi yiyip öldüyse (Raunt bittiyse)
         terminated = self.current_obs.get("isGameOver", False)
+        if terminated:
+            reward -= 25.0  
+            print("[PENALTY] Bot got one-shotted! Game Over. -25")
         
         return state, reward, terminated, False, {}
 
     def _parse_observation(self, raw_data):
+        if raw_data is None:
+            return np.zeros(16, dtype=np.float32)
+            
         players = raw_data.get("players", [])
         current_name = raw_data.get("current_turn_player", "")
         
@@ -73,7 +101,10 @@ env = TanksSingleAgentEnv()
 def act():
     env.current_obs = request.json
     
+    # Yeni veri geldi, step fonksiyonunu uyandır
     env.data_ready.set()
+    
+    # PPO'nun step fonksiyonunun yeni bir karar (action) üretmesini bekle
     env.action_ready.wait()
     env.action_ready.clear()
     
@@ -85,16 +116,4 @@ def act():
 def run_server():
     app.run(port=5000, host='0.0.0.0', threaded=True)
 
-if __name__ == "__main__":
-    server_thread = threading.Thread(target=run_server, daemon=True)
-    server_thread.start()
-    print("[AI AGENT] Flask server listening on port 5000...")
-    
-    env.data_ready.wait()
-    print("[AI AGENT] Bridge connected. Starting simulation...")
-    
-    while True:
-        random_action = env.action_space.sample()
-        state, reward, done, _, _ = env.step(random_action)
-        if done:
-            env.reset()
+# train.py bu dosyayı import edeceği için alttaki eski random test döngüsünü sildik!
