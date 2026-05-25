@@ -60,6 +60,7 @@ type PlayerState struct {
 	Input      PlayerInput `json:"-"`
 	LastShotAt float64     `json:"-"`
 	Health     int         `json:"health"`
+	IsBot      bool        `json:"is_bot"`
 }
 
 type PlayerInput struct {
@@ -85,6 +86,7 @@ type PlayerObservation struct {
 	Y      float64 `json:"y"`
 	Angle  float64 `json:"angle"`
 	Health int     `json:"health"`
+	IsBot  bool    `json:"is_bot"`
 	Up     bool    `json:"up"`
 	Down   bool    `json:"down"`
 	Left   bool    `json:"left"`
@@ -118,6 +120,7 @@ type Engine interface {
 	GameState() Observation
 	AddPlayer(nickname string) error
 	RemovePlayer(nickname string)
+	SetPlayerBot(nickname string, isBot bool)
 }
 
 func isWall(x, y float64) bool {
@@ -165,8 +168,18 @@ func (e *GameEngine) AddPlayer(nickname string) error {
 		Angle:      0,
 		LastShotAt: e.simTime - 1.0,
 		Health:     100,
+		IsBot:      false,
 	}
 	return nil
+}
+
+func (e *GameEngine) SetPlayerBot(nickname string, isBot bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if player, ok := e.Players[nickname]; ok {
+		player.IsBot = isBot
+	}
 }
 
 func (e *GameEngine) RemovePlayer(nickname string) {
@@ -487,6 +500,7 @@ func (g *GameEngine) GameState() Observation {
 			Y:      player.Y,
 			Angle:  player.Angle,
 			Health: player.Health,
+			IsBot:  player.IsBot,
 			Up:     player.Input.Up,
 			Down:   player.Input.Down,
 			Left:   player.Input.Left,
