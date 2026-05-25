@@ -170,6 +170,16 @@ func (c *Client) readPump() {
 				c.room.Broadcast <- normalized
 			}
 
+		case "SPAWN_SHERLOCK":
+			if c.room != nil {
+				incomingMsg.Nickname = c.Nickname
+				normalized, err := json.Marshal(incomingMsg)
+				if err != nil {
+					continue
+				}
+				c.room.Broadcast <- normalized
+			}
+
 		default:
 			if c.room != nil {
 				incomingMsg.Nickname = c.Nickname

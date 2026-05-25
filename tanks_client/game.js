@@ -10,6 +10,7 @@ const nickInput = document.getElementById('nick-input');
 const roomInput = document.getElementById('room-input');
 const joinBtn = document.getElementById('join-btn');
 const createBtn = document.getElementById('create-btn');
+const lobbySherlockBtn = document.getElementById('lobby-sherlock-btn');
 const lobbyStatus = document.getElementById('lobby-status');
 const roomIdLabel = document.getElementById('room-id');
 const ownerNickLabel = document.getElementById('owner-nick');
@@ -59,15 +60,23 @@ window.onkeyup = (e) => { keys[e.code] = false; };
 
 joinBtn.disabled = true;
 createBtn.disabled = true;
-lobbyStatus.innerText = 'Sunucuya baglaniyor...';
+lobbySherlockBtn.disabled = true;
+lobbyStatus.innerText = 'Connecting to server...';
 
 roomInput.addEventListener('input', () => {
     roomInput.value = roomInput.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 7);
 });
 
 function getWsUrl() {
-    const host = window.location.hostname || 'localhost';
-    return `ws://${host}:8080/ws`;
+    const params = new URLSearchParams(window.location.search);
+    const forcedWs = params.get('ws');
+    if (forcedWs) {
+        return forcedWs;
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname || '127.0.0.1';
+    return `${protocol}//${host}:8080/ws`;
 }
 
 function updatePlayerCount(count) {
@@ -81,6 +90,10 @@ function renderRoomPlayers(players, owner) {
         li.innerText = p === owner ? `${p} (admin)` : p;
         roomPlayers.appendChild(li);
     });
+}
+
+function hasSherlock() {
+    return (roomState.players || []).includes('Sherlock');
 }
 
 function updateLobbyOverlay() {
@@ -104,11 +117,13 @@ function updateLobbyOverlay() {
     resultOverlay.style.display = roomState.gameOver ? 'flex' : 'none';
 
     if (!isOwner) {
-        roomLobbyStatus.innerText = 'Admin oyunu baslatinca tur baslayacak.';
+        roomLobbyStatus.innerText = 'The owner will start the match.';
     } else if ((roomState.players || []).length < 2) {
-        roomLobbyStatus.innerText = 'Oyunu baslatmak icin en az 2 oyuncu gerekli.';
+        roomLobbyStatus.innerText = 'At least 2 players are required to start.';
+    } else if (hasSherlock()) {
+        roomLobbyStatus.innerText = 'Sherlock is active. The owner can start the match.';
     } else {
-        roomLobbyStatus.innerText = 'Hazirsan oyunu baslatabilirsin.';
+        roomLobbyStatus.innerText = 'You can add Sherlock or start the match.';
     }
 }
 
@@ -129,21 +144,23 @@ function connect() {
     socket.onopen = () => {
         joinBtn.disabled = false;
         createBtn.disabled = false;
-        lobbyStatus.innerText = 'Baglandi. Nick girip katilabilirsin.';
+        lobbySherlockBtn.disabled = false;
+        lobbyStatus.innerText = 'Connected. Enter a nickname to continue.';
         lobbyStatus.className = 'lobby-status connected';
     };
 
     socket.onerror = () => {
-        lobbyStatus.innerText = 'Baglanti hatasi.';
+        lobbyStatus.innerText = 'Connection error.';
         lobbyStatus.className = 'lobby-status error';
     };
 
     socket.onclose = () => {
         joinBtn.disabled = true;
         createBtn.disabled = true;
+        lobbySherlockBtn.disabled = true;
 
         if (!isJoined) {
-            lobbyStatus.innerText = 'Baglanti kapandi.';
+            lobbyStatus.innerText = 'Connection closed.';
             lobbyStatus.className = 'lobby-status error';
         }
     };
@@ -160,19 +177,19 @@ function sendLogin(action) {
     const enteredRoom = roomInput.value.trim().toUpperCase();
 
     if (!validateNickname(nickname)) {
-        lobbyStatus.innerText = 'Nick 3-12 karakter olmali (harf/rakam/_).';
+        lobbyStatus.innerText = 'Nickname must be 3-12 characters (letters, numbers, _).';
         lobbyStatus.className = 'lobby-status error';
         return;
     }
 
     if (action === 'join' && !roomCodeRegex.test(enteredRoom)) {
-        lobbyStatus.innerText = 'Oda kodu 7 buyuk harf olmali.';
+        lobbyStatus.innerText = 'Room code must be 7 uppercase letters.';
         lobbyStatus.className = 'lobby-status error';
         return;
     }
 
     if (socket.readyState !== WebSocket.OPEN) {
-        lobbyStatus.innerText = 'Henuz bagli degil. Biraz bekle.';
+        lobbyStatus.innerText = 'Not connected yet. Please wait.';
         lobbyStatus.className = 'lobby-status error';
         return;
     }
@@ -187,8 +204,14 @@ function sendLogin(action) {
 
 joinBtn.onclick = () => sendLogin('join');
 createBtn.onclick = () => sendLogin('create');
+lobbySherlockBtn.onclick = () => {
+    pendingSherlockRoom = true;
+    sendLogin('create');
+};
 startGameBtn.onclick = () => sendJson({ type: 'START_GAME' });
 backToLobbyBtn.onclick = () => returnToLobby();
+
+let pendingSherlockRoom = false;
 
 function returnToLobby() {
     gameStarted = false;
@@ -197,7 +220,7 @@ function returnToLobby() {
     lastInputPayload = null;
     Object.keys(keys).forEach((k) => delete keys[k]);
 
-    resultText.innerText = 'Kazanan bekleniyor...';
+    resultText.innerText = 'Waiting for winner...';
     roomState.gameOver = false;
     roomState.started = false;
     roomState.winner = "";
@@ -271,6 +294,13 @@ function onSocketMessage(event) {
 
     if (msg.type === "GAME_OVER") {
         showResult(msg.winner || "");
+    }
+
+    if (msg.type === "AUTH_SUCCESS" && pendingSherlockRoom) {
+        pendingSherlockRoom = false;
+        setTimeout(() => {
+            sendJson({ type: 'SPAWN_SHERLOCK' });
+        }, 0);
     }
 }
 

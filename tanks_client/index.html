@@ -2,12 +2,12 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Tank Arena - Lobi</title>
+    <title>Tank Game</title>
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #0c0c0c; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
         
-        /* LOBİ EKRANI */
+        /* LOBBY SCREEN */
         #lobby-screen { position: fixed; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%); z-index: 10; }
         .lobby-card { 
             background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
@@ -85,7 +85,7 @@
         .lobby-status.connected { color: #00ff88; }
         .lobby-status.error { color: #ff4444; }
 
-        /* OYUN EKRANI */
+        /* GAME SCREEN */
         #game-screen { display: none; text-align: center; padding-top: 20px; }
         .game-viewport {
             position: relative;
@@ -150,10 +150,40 @@
             box-shadow: none;
         }
 
+        #spawn-sherlock-btn {
+            margin-top: 10px;
+            background: linear-gradient(135deg, #8be9fd 0%, #50fa7b 100%);
+        }
+
+        #spawn-sherlock-btn[disabled] {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
         .room-help {
             margin-top: 10px;
             color: #a8a8a8;
             font-size: 13px;
+        }
+
+        .lobby-actions {
+            display: grid;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .lobby-actions button {
+            width: 100%;
+        }
+
+        .lobby-divider {
+            margin: 18px 0 12px;
+            color: #7f7f7f;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
         }
 
         .result-overlay { display: none; }
@@ -163,46 +193,50 @@
 
     <div id="lobby-screen">
         <div class="lobby-card">
-            <h1>⚔ TANK ARENA ⚔</h1>
-            <div class="subtitle">MULTIPLAYER SAVAŞ OYUNU</div>
+            <h1>⚔ TANK GAME ⚔</h1>
+            <div class="subtitle">MULTIPLAYER BATTLE GAME</div>
             
             <div class="lobby-form">
-                <input type="text" id="nick-input" placeholder="Isim (3-12 karakter)" maxlength="12">
-                <input type="text" id="room-input" placeholder="Oda Kodu (ORN: ABCDEFG)" maxlength="7" autocomplete="off">
-                <button id="join-btn">ODAYA KATIL</button>
-                <button id="create-btn">ODA OLUSTUR</button>
+                <input type="text" id="nick-input" placeholder="Nickname (3-12 characters)" maxlength="12">
+                <input type="text" id="room-input" placeholder="Room Code (e.g. ABCDEFG)" maxlength="7" autocomplete="off">
+                <div class="lobby-divider">Choose an action</div>
+                <div class="lobby-actions">
+                    <button id="join-btn">JOIN ROOM</button>
+                    <button id="create-btn">CREATE ROOM</button>
+                    <button id="lobby-sherlock-btn">PLAY WITH SHERLOCK</button>
+                </div>
             </div>
             
-            <div id="lobby-status" class="lobby-status">Sunucuya bağlanıyor...</div>
-            <div style="margin-top: 20px; font-size: 12px; color: #555;">W/↑: İleri  |  A/←: Sola Dön  |  D/→: Sağa Dön  |  SPACE: Ateş</div>
+            <div id="lobby-status" class="lobby-status">Connecting to server...</div>
+            <div style="margin-top: 20px; font-size: 12px; color: #555;">W/↑: Move Forward  |  A/←: Turn Left  |  D/→: Turn Right  |  SPACE: Fire</div>
         </div>
     </div>
 
     <div id="game-screen">
         <div class="ui">
-            <span id="player-nick"></span> | Oda: <span id="room-id">-</span> | Admin: <span id="owner-nick">-</span> | Oyuncular: <span id="count">0</span>
+            <span id="player-nick"></span> | Room: <span id="room-id">-</span> | Owner: <span id="owner-nick">-</span> | Players: <span id="count">0</span>
         </div>
         <div class="game-viewport">
             <canvas id="gameCanvas" width="800" height="800"></canvas>
 
             <div id="room-lobby-overlay" class="room-lobby-overlay">
                 <div class="room-lobby-card">
-                    <h2>Oda Lobisi</h2>
-                    <div>Oda kodu: <strong id="room-lobby-room-id">-</strong></div>
-                    <div>Admin: <strong id="room-owner">-</strong></div>
-                    <div style="margin-top: 10px;">Oyuncular (<span id="room-player-count">0</span>/4)</div>
+                    <h2>Room Lobby</h2>
+                    <div>Room code: <strong id="room-lobby-room-id">-</strong></div>
+                    <div>Owner: <strong id="room-owner">-</strong></div>
+                    <div style="margin-top: 10px;">Players (<span id="room-player-count">0</span>/4)</div>
                     <ul id="room-players"></ul>
-                    <button id="start-game-btn" disabled>OYUNU BASLAT</button>
-                    <div id="room-lobby-status" class="room-help">Oyun admin tarafindan baslatilacak.</div>
+                    <button id="start-game-btn" disabled>START GAME</button>
+                    <div id="room-lobby-status" class="room-help">The owner can start the game.</div>
                 </div>
             </div>
 
             <div id="result-overlay" class="result-overlay">
                 <div class="result-card">
-                    <h2>Oyun Bitti</h2>
-                    <div id="result-text">Kazanan bekleniyor...</div>
-                    <div class="room-help">Yeni turu sadece admin baslatabilir.</div>
-                    <button id="back-to-lobby-btn" style="margin-top: 14px;">LOBIYE DON</button>
+                    <h2>Game Over</h2>
+                    <div id="result-text">Waiting for winner...</div>
+                    <div class="room-help">Only the owner can start a new round.</div>
+                    <button id="back-to-lobby-btn" style="margin-top: 14px;">BACK TO LOBBY</button>
                 </div>
             </div>
         </div>

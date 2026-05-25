@@ -25,7 +25,7 @@ type Room struct {
 }
 
 func NewRoom(id string, closed chan string, eng engine.Engine) *Room {
-	return &Room{
+	room := &Room{
 		ID:         id,
 		Clients:    make(map[*Client]bool),
 		Broadcast:  make(chan []byte),
@@ -35,6 +35,7 @@ func NewRoom(id string, closed chan string, eng engine.Engine) *Room {
 		Engine:     eng,
 		lastUpdate: time.Now(),
 	}
+	return room
 }
 
 func (r *Room) Run() {
@@ -79,15 +80,16 @@ func (r *Room) Run() {
 		case message := <-r.Broadcast:
 			//Gelen mesajları işle
 			r.handleIncomingMessage(message)
-		//oyun döngüsü (her TIK ta çalışır)
 		case <-ticker.C:
 			if r.GameStarted && !r.GameOver {
 				//zaman farkını hesapla
 				now := time.Now()
 				dt := now.Sub(r.lastUpdate).Seconds()
 				r.lastUpdate = now
+				r.syncBotAction()
 				//motoru bir adım ilerlet
 				r.Engine.Update(dt)
+				r.clearBotInput()
 				r.evaluateGameOver()
 			}
 			//Yeni dünya durumunu herkese gönder
@@ -96,7 +98,7 @@ func (r *Room) Run() {
 				r.closeRoom()
 				return
 			}
-
+			//oyun döngüsü (her TIK ta çalışır)
 		}
 	}
 }
@@ -138,6 +140,10 @@ func (r *Room) handleIncomingMessage(rawMessage []byte) {
 		}
 	} else if msg.Type == "START_GAME" {
 		r.tryStartGame(msg.Nickname)
+	} else if msg.Type == "SPAWN_SHERLOCK" {
+		r.spawnSherlock()
+		r.BroadcastPlayerList()
+		r.BroadcastRoomState()
 	} else if msg.Type == "FIRE" {
 		if !r.GameStarted || r.GameOver {
 			return
