@@ -11,8 +11,8 @@ import (
 
 const (
 	sherlockNickname  = "Sherlock"
-	pythonActionURL   = "http://localhost:5000/act"
-	pythonActionTimeo = 15 * time.Millisecond
+	pythonActionURL   = "http://ai-agent:5000/act"
+	pythonActionTimeo = 2 * time.Second
 )
 
 var pythonActionClient = &http.Client{Timeout: pythonActionTimeo}

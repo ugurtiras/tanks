@@ -97,7 +97,7 @@ func (c *Client) handleLogin(incomingMsg GameMessage) {
 		return
 	}
 
-	if action != "join" && action != "create" {
+	if action != "join" && action != "create" && action != "create_sherlock" {
 		c.sendAuthFail("Gecersiz istek. Odaya katil veya oda olustur sec.")
 		return
 	}
@@ -121,6 +121,10 @@ func (c *Client) handleLogin(incomingMsg GameMessage) {
 		c.hub.Unregister <- c
 		c.Nickname = ""
 		return
+	}
+
+	if action == "create_sherlock" {
+		c.room.spawnSherlock()
 	}
 
 	fmt.Printf("Oyuncu LOGIN oldu: %s (Oda: %s)\n", c.Nickname, joinRes.RoomID)
