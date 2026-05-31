@@ -68,15 +68,8 @@ roomInput.addEventListener('input', () => {
 });
 
 function getWsUrl() {
-    const params = new URLSearchParams(window.location.search);
-    const forcedWs = params.get('ws');
-    if (forcedWs) {
-        return forcedWs;
-    }
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname || '127.0.0.1';
-    return `${protocol}//${host}:8080/ws`;
+    const host = window.location.hostname || 'localhost';
+    return `ws://${host}:8080/ws`;
 }
 
 function updatePlayerCount(count) {
@@ -205,13 +198,10 @@ function sendLogin(action) {
 joinBtn.onclick = () => sendLogin('join');
 createBtn.onclick = () => sendLogin('create');
 lobbySherlockBtn.onclick = () => {
-    pendingSherlockRoom = true;
-    sendLogin('create');
+    sendLogin('create_sherlock');
 };
 startGameBtn.onclick = () => sendJson({ type: 'START_GAME' });
 backToLobbyBtn.onclick = () => returnToLobby();
-
-let pendingSherlockRoom = false;
 
 function returnToLobby() {
     gameStarted = false;
@@ -296,12 +286,6 @@ function onSocketMessage(event) {
         showResult(msg.winner || "");
     }
 
-    if (msg.type === "AUTH_SUCCESS" && pendingSherlockRoom) {
-        pendingSherlockRoom = false;
-        setTimeout(() => {
-            sendJson({ type: 'SPAWN_SHERLOCK' });
-        }, 0);
-    }
 }
 
 function sendJson(payload) {

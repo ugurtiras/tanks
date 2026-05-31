@@ -9,7 +9,7 @@ import (
 	"server/internal/engine"
 )
 
-const pythonServerURL = "http://localhost:5000/act"
+const pythonServerURL = "http://ai-agent:5000/act"
 
 type TrainingPayload struct {
 	CurrentTurnPlayer string                     `json:"current_turn_player"`
